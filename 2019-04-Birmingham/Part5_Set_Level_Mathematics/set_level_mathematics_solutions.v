@@ -1,8 +1,6 @@
-
 (** Imports *)
 
 Require Export UniMath.Foundations.Propositions.
-
 
 (** * The type of sets i.e. of types of h-level 2 in [UU] *)
 
@@ -13,10 +11,7 @@ Coercion pr1hSet: hSet >-> UU.
 
 Definition setproperty (X : hSet) := pr2 X.
 
-
-
 (** * Applications of Hedberg's theorem *)
-
 
 (** Define a map from [bool] to [UU] that maps
     [true] to [unit] (the one-element type) and
@@ -54,13 +49,13 @@ Proof.
       apply idpath.
 Defined.
 
+Check isasetifdeceq.
+
 Theorem isaset_bool : isaset bool.
 Proof.
   apply isasetifdeceq.
   apply isdeceqbool.
 Defined.
-
-
 
 (** * [nat] is a set *)
 
@@ -81,7 +76,6 @@ Lemma no_path_from_successor_to_zero (x : nat) : S x != 0.
 Proof.
   intro X. apply (no_path_from_zero_to_successor x (pathsinv0 X)).
 Defined.
-
 
 (** Define a predecessor function on [nat]:
     [0] is mapped to [0]
@@ -121,7 +115,6 @@ Proof.
       * apply ii2. apply noeqinjS. apply not_eq_m_n.
 Defined.
 
-
 Lemma isasetnat : isaset nat.
 Proof.
   apply isasetifdeceq.
@@ -130,9 +123,11 @@ Defined.
 
 (** * Functions in sets *)
 
-
 Definition is_injective {X Y : hSet} (f : X -> Y) : UU
   := ∏ (x x': X), f x = f x' -> x = x'.
+
+(* This is a useful lemma for checking that dependent function types are propositions or sets *)
+Check impred.
 
 Lemma isaprop_is_injective {X Y : hSet} (f : X -> Y)
   : isaprop (is_injective f).
@@ -142,63 +137,31 @@ Proof.
   apply impred. intro y.
   apply impred. intro e.
   apply setproperty.
-Qed.
-(** Question: does the above proof need both X and Y to be sets? *)
-
-Print isincl.
-
-Theorem isinclbetweensets {X Y : hSet} (f : X -> Y)
-  : is_injective f -> isincl f.
-Proof.
-  intro f_inj.
-  unfold isincl. unfold isofhlevelf.
-  intro y.
-  apply invproofirrelevance.
-  intros x x'.
-  induction x as [x p].
-  induction x' as [x' p'].
-  use subtypeEquality.
-  - intro foo. apply setproperty.
-  - cbn. apply f_inj.
-    apply (p @ !p').
 Defined.
 (** Question: does the above proof need both X and Y to be sets? *)
-
-
-
-
-(** ** Surjections to sets are epimorphisms  *)
-
-Theorem surjection_is_epi_to_sets {X Y Z : UU} (f : X -> Y) (g1 g2 : Y -> Z)
-        (is1 : issurjective f) (is2 : isaset Z)
-        (isf : ∏ x : X, g1 (f x) = g2 (f x))
-  : ∏ y : Y, g1 y = g2 y.
-Proof.
-  intro y.
-  apply (@squash_to_prop _ _ (is1 y)).
-  - apply is2.
-  - intro xp. induction xp as [x p]. induction p. apply isf.
-Defined.
-
 
 (** * The universe is not a set *)
 (** The next result requires univalence *)
 
 Require Import UniMath.Foundations.UnivalenceAxiom.
 
-
 Module universe_is_not_a_set.
 
+  (* We will show that bool has a weak equivalence besides the identity. *)
 
   Lemma isweq_negb : isweq negb.
   Proof.
-    use gradth.
+    use isweq_iso.
     - exact negb.
     - intro x. induction x; apply idpath.
     - intro x; induction x; apply idpath.
   Defined.
 
-  Definition weq_negb : bool ≃ bool := weqpair negb isweq_negb.
+  Definition weq_negb : bool ≃ bool := make_weq negb isweq_negb.
+
+  (* Show that negb is not equal to the identity.
+     It suffices, using toforallpaths, to show that they differ on some element. *)
+  Check toforallpaths.
 
   Lemma no_path_weq_negb_idweq : weq_negb != idweq bool.
   Proof.
@@ -208,12 +171,15 @@ Module universe_is_not_a_set.
     exact (no_path_from_false_to_true H').
   Defined.
 
+  (* Using Univalence, we can show that if the universe were a set, then
+     negb would have to be equal to the identity. *)
+
   Definition isaset_UU_gives_path_weq_negb_idweq
     : isaset UU → weq_negb = idweq bool.
   Proof.
     intro H.
     set (H':= H bool bool).
-    set (T:= invmaponpathsweq (invweq (weqpair _ (univalenceAxiom bool bool)))).
+    set (T:= invmaponpathsweq (invweq (make_weq _ (univalenceAxiom bool bool)))).
     apply T.
     apply H'.
   Defined.
@@ -224,7 +190,6 @@ Module universe_is_not_a_set.
   Defined.
 
 End universe_is_not_a_set.
-
 
 (** * Relations *)
 
@@ -248,9 +213,7 @@ Definition iseqrelconstr {X : UU} {R : hrel X}
            (refl0 : isrefl R)
            (symm0 : issymm R)
   : iseqrel R
-  := dirprodpair (dirprodpair trans0 refl0) symm0.
-
-
+  := make_dirprod (make_dirprod trans0 refl0) symm0.
 
 (** ** Eqivalence relations *)
 
@@ -261,7 +224,7 @@ Definition eqrelpair {X : UU} (R : hrel X) (is : iseqrel R)
   := tpair (λ R : hrel X, iseqrel R) R is.
 Definition eqrelconstr {X : UU} (R : hrel X)
            (is1 : istrans R) (is2 : isrefl R) (is3 : issymm R) : eqrel X
-  := eqrelpair R (dirprodpair (dirprodpair is1 is2) is3).
+  := eqrelpair R (make_dirprod (make_dirprod is1 is2) is3).
 
 Definition pr1eqrel (X : UU) : eqrel X -> (X -> (X -> hProp)) := @pr1 _ _.
 Coercion pr1eqrel : eqrel >-> Funclass.
@@ -270,7 +233,6 @@ Definition eqreltrans {X : UU} (R : eqrel X) : istrans R := pr1 (pr1 (pr2 R)).
 Definition eqrelrefl {X : UU} (R : eqrel X) : isrefl R := pr2 (pr1 (pr2 R)).
 Definition eqrelsymm {X : UU} (R : eqrel X) : issymm R := pr2 (pr2 R).
 
-
 (** * The type of subtypes of a given type *)
 
 Definition hsubtype (X : UU) : UU := X -> hProp.
@@ -278,13 +240,15 @@ Definition hsubtype (X : UU) : UU := X -> hProp.
 (** The carrier of a subtype *)
 Definition carrier {X : UU} (A : hsubtype X) : UU := ∑ x : X, A x.
 
+Check isasethProp.
+Check (impred 2).
+
 Lemma isasethsubtype (X : UU) : isaset (hsubtype X).
 Proof.
   apply (impred 2).
   intro x.
   exact isasethProp.
 Defined.
-
 
 (** ** A subtype with paths between any two elements is an [hProp]. *)
 
@@ -307,7 +271,6 @@ Proof.
   apply (is x0 x0' is0 is0').
 Defined.
 
-
 (** ** Equivalence classes with respect to a given relation *)
 
 Definition iseqclass {X : UU} (R : hrel X) (A : hsubtype X) : UU
@@ -323,7 +286,7 @@ Definition iseqclassconstr {X : UU} (R : hrel X) {A : hsubtype X}
            (ax1 : ∏ x1 x2 : X, R x1 x2 -> A x1 -> A x2)
            (ax2 : ∏ x1 x2 : X, A x1 ->  A x2 -> R x1 x2)
   : iseqclass R A
-  := dirprodpair ax0 (dirprodpair ax1 ax2).
+  := make_dirprod ax0 (make_dirprod ax1 ax2).
 
 Definition eqax0 {X : UU} {R : hrel X} {A : hsubtype X}
   : iseqclass R A -> ishinh (carrier A)
@@ -334,7 +297,6 @@ Definition eqax1 {X : UU} {R : hrel X} {A : hsubtype X}
 Definition eqax2 {X : UU} {R : hrel X} {A : hsubtype X}
   : iseqclass R A -> ∏ x1 x2 : X, A x1 -> A x2 -> R x1 x2
   := λ is : iseqclass R A, pr2 (pr2 is).
-
 
 Lemma isapropiseqclass {X : UU} (R : hrel X) (A : hsubtype X)
   : isaprop (iseqclass R A).
@@ -355,14 +317,7 @@ Proof.
       exact (pr2 (R t t0)).
 Defined.
 
-
-
-(** * Set quotients of types *)
-
-
-
 (** ** Setquotient defined in terms of equivalence classes *)
-
 
 Definition setquot {X : UU} (R : hrel X) : UU
   := ∑ A : hsubtype X, iseqclass R A.
@@ -377,14 +332,12 @@ Definition pr1setquot {X : UU} (R : hrel X)
   := @pr1 _ (λ A : _, iseqclass R A).
 Coercion pr1setquot : setquot >-> hsubtype.
 
-
 Lemma isinclpr1setquot {X : UU} (R : hrel X) : isincl (pr1setquot R).
 Proof.
   apply isinclpr1.
   intro x0.
   apply isapropiseqclass.
 Defined.
-
 
 Definition setquottouu0 {X : UU} (R : hrel X) (a : setquot R)
   := carrier (pr1 a).
@@ -410,7 +363,6 @@ Proof.
     + exact (tax x1 x x2 (sax x x1 X1) X2).
 Defined.
 
-
 Lemma setquotl0 {X : UU} (R : eqrel X) (c : setquot R) (x : c) :
   setquotpr R (pr1 x) = c.
 Proof.
@@ -422,7 +374,6 @@ Proof.
   - exact (eqax1 (pr2 c) (pr1 x) x0 r (pr2 x)).
   - exact (eqax2 (pr2 c) (pr1 x) x0 (pr2 x) r).
 Defined.
-
 
 Theorem issurjsetquotpr {X : UU} (R : eqrel X) : issurjective (setquotpr R).
 Proof.
@@ -448,9 +399,7 @@ Proof.
   - intro x0'. apply (eqreltrans R _ _ _ r x0').
 Defined.
 
-
 (** *** Universal property of [seqtquot R] for functions to sets satisfying compatibility condition [iscomprelfun] *)
-
 
 Definition iscomprelfun {X Y : UU} (R : hrel X) (f : X -> Y) : UU
   := ∏ x x' : X, R x x' -> f x = f x'.
@@ -461,7 +410,7 @@ Lemma isapropimeqclass {X : UU} (R : hrel X) (Y : hSet) (f : X -> Y)
 Proof.
   apply isapropsubtype.
   intros y1 y2. simpl.
-  apply (@hinhuniv2 _ _ (hProppair (y1 = y2) (pr2 Y y1 y2))).
+  apply (@hinhuniv2 _ _ (make_hProp (y1 = y2) (pr2 Y y1 y2))).
   intros x1 x2. simpl.
   destruct c as [ A iseq ].
   destruct x1 as [ x1 is1 ]. destruct x2 as [ x2 is2 ].
@@ -481,7 +430,11 @@ Proof.
   - unfold carrier. apply prtoimage.
 Defined.
 
-
+(** Note : the axioms rax, sax and trans are not used in the proof of
+  setquotuniv. If we consider a relation which is not an equivalence relation
+  then setquot will still be the set of subsets which are equivalence classes.
+  Now however such subsets need not to cover all of the type. In fact their set
+  can be empty. Nevertheless setquotuniv will apply. *)
 
 Theorem setquotunivcomm {X : UU} (R : eqrel X) (Y : hSet) (f : X -> Y)
         (is : iscomprelfun R f) :
